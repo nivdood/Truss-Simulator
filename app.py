@@ -39,6 +39,28 @@ while running:
                         members.append((selected_node, clicked_node))
                     selected_node = None
 
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+            pos = event.pos
+            for i, node in enumerate(nodes):
+                if ((node[0] - pos[0])**2 + (node[1] - pos[1])**2)**0.5 < 15:
+                    members = [m for m in members if i not in m]
+                    
+                    updated_members = []
+                    for n1, n2 in members:
+                        new_n1 = n1 - 1 if n1 > i else n1
+                        new_n2 = n2 - 1 if n2 > i else n2
+                        updated_members.append((new_n1, new_n2))
+                    members = updated_members
+
+                    nodes.pop(i)
+
+                    if selected_node == i:
+                        selected_node = None
+                    elif selected_node is not None and selected_node > i:
+                        selected_node -= 1
+
+                    break
+
     for member in members:
         pygame.draw.line(SCREEN, BLACK, nodes[member[0]], nodes[member[1]], 3)
 

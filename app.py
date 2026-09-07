@@ -16,6 +16,8 @@ nodes = []
 members = []
 supports = {}
 loads = {}
+displacement = []
+scale_factor = 50
 selected_node = None
 
 # matrices and whatever
@@ -39,7 +41,7 @@ def get_local_stiffness(node1, node2, EA=999999999):
     stiffness = EA / length
     
     stiffness_matrix = stiffness * np.array([
-    [ c*c,  c*s, -c*s, -c*s],  # node 1 x-direction
+    [ c*c,  c*s, -c*c, -c*s],  # node 1 x-direction
     [ c*s,  s*s, -c*s, -s*s],  # node 1 y-direction
     [-c*c, -c*s,  c*c,  c*s],  # node 2 x-direction
     [-c*s, -s*s,  c*s,  s*s]   # node 2 y-direction
@@ -157,6 +159,38 @@ while running:
             
                             print("global stiffness matrix assembled Shape:", stiffness_global.shape)
                             print("global force vector F:", forces_global)
+
+                            #differentiate fixed and hinge supports
+                            fixed_dofs = []
+                            for node_idx, support_type in supports.items():
+                                if support_type == 'fixed':
+                                    fixed_dofs.extend([2 * node_idx, 2 * node_idx + 1]) # both x and y directions are fixed for fixed support
+                                elif support_type == 'hinge':
+                                    fixed_dofs.append(2 * node_idx + 1)  # only y direction is fixed for hinge
+
+                            free_dofs = []
+                            for dof in range(num_dofs):
+                                if dof not in fixed_dofs:
+                                    free_dofs.append(dof)
+
+                            if len(free_dofs) == 0:
+                                print("all dof fixed")
+                            else:
+                                try:
+                                    stiffness_free = stiffness_global[free_dofs][:, free_dofs]
+                                    forces_free = forces_global[free_dofs]
+                                    displacement_free = np.linalg.solve(stiffness_free, forces_free)
+                                    displacement = np.zeros(num_dofs)
+                                    for i, dof in enumerate(free_dofs):
+                                        displacement[dof] = displacement_free[i]
+                                    for i in range(num_nodes):
+                                        dx = displacement[2 * i]
+                                        dy = displacement[2 * i + 1]
+                                        print(f"Node {i}: Displacement dx = {dx:.4f}, dy = {dy:.4f}")
+                                except np.linalg.LinAlgError:
+                                    print("error! structure is unstable or unsupported")
+
+
             
             else:
                 hovered_node = None
